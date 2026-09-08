@@ -1,12 +1,17 @@
 {
   "name": "slingr-mcp",
   "version": "0.1.0",
-  "private": true,
+  "description": "Generic MCP server for Slingr applications.",
   "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "build": "node build.js"
+  },
   "engines": {
     "node": ">=20"
   },
-  "scripts": {
-    "start": "node --env-file=.env src/index.js"
+  "dependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2"
   }
 }

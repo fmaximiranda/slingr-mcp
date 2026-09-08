@@ -1,0 +1,74 @@
+{
+  "manifest_version": "0.3",
+  "name": "slingr-mcp",
+  "display_name": "Slingr MCP",
+  "version": "0.1.0",
+  "description": "Connect any Slingr App to MCP-compatible AI clients.",
+  "long_description": "Slingr MCP dynamically reads a Slingr App's OpenAPI documentation, normalizes Slingr-specific API definitions, and exposes the available API operations as MCP tools.",
+  "author": {
+    "name": "Maximiliano Miranda"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fmaximiranda/slingr-mcp.git"
+  },
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "src/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/src/index.js"
+      ],
+      "env": {
+        "APP_URL": "${user_config.app_url}",
+        "API_TOKEN": "${user_config.api_token}",
+        "OPENAPI_URL": "${user_config.openapi_url}"
+      }
+    }
+  },
+  "user_config": {
+    "app_url": {
+      "type": "string",
+      "title": "Slingr App URL",
+      "description": "Base URL of the Slingr App API.",
+      "required": true
+    },
+    "api_token": {
+      "type": "string",
+      "title": "API Token",
+      "description": "Token used to authenticate requests to the Slingr App.",
+      "sensitive": true,
+      "required": true
+    },
+    "openapi_url": {
+      "type": "string",
+      "title": "OpenAPI URL",
+      "description": "URL of the Slingr App OpenAPI documentation.",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20"
+    }
+  },
+  "keywords": [
+    "slingr",
+    "mcp",
+    "api",
+    "openapi",
+    "automation"
+  ],
+  "license": "MIT"
+}
+
+
+
+
