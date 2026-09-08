@@ -52,7 +52,7 @@ Example:
 ```env
 APP_URL=https://example.slingrs.io/prod/runtime/api
 API_TOKEN=your-slingr-api-token
-OPENAPI_URL=https://example.slingrs.io/prod/runtime/api/files/public/doc-files/mcp.json
+OPENAPI_URL=https://example.slingrs.io/prod/runtime/api/docs/mcp
 ```
 
 Optional debugging and App-specific configuration can also be provided.
