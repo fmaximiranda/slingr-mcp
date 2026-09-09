@@ -12,7 +12,9 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@anthropic-ai/mcpb": "^2.1.2",
     "@ivotoby/openapi-mcp-server": "^1.16.1"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2"
   }
 }
