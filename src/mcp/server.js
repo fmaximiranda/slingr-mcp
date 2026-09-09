@@ -27,14 +27,17 @@ export async function startMcpServer({
     throw new Error("apiToken is required.");
   }
 
+  // The library ToolsManager calls:
+  //   specLoader.loadOpenAPISpec(config.openApiSpec, config.specInputMethod, config.inlineSpecContent)
+  // When specInputMethod is "inline", it uses config.inlineSpecContent.
   const server = new OpenAPIServer({
     name,
     version,
 
     apiBaseUrl: appUrl,
 
-    openApiSpec: JSON.stringify(openApiSpec),
     specInputMethod: "inline",
+    inlineSpecContent: JSON.stringify(openApiSpec),
 
     headers: {
       token: apiToken,

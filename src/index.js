@@ -4,33 +4,44 @@ import { fetchOpenAPI } from "./openapi/fetch.js";
 import { normalizeOpenAPI } from "./openapi/normalize.js";
 import { processActions } from "./openapi/actions.js";
 import { createOverrides } from "./openapi/overrides.js";
+import { startMcpServer } from "./mcp/server.js";
 
 /**
- * First runtime entry point for slingr-mcp.
+ * Main entry point for slingr-mcp.
  *
- * At this stage this entry point prepares the normalized Slingr OpenAPI. MCP
- * transport/tool registration will be wired in after the OpenAPI adapter is
- * stable.
+ * Pipeline:
+ *   readConfig() → fetchOpenAPI() → normalizeOpenAPI() → processActions() → startMcpServer()
+ *
+ * The normalized OpenAPI spec is passed inline to the MCP server so no
+ * temporary file is needed. The API token is injected as a header by the
+ * server and never exposed to the model as a tool parameter.
  */
 
 async function main() {
+  console.error("[slingr-mcp] Initializing Slingr MCP server...");
+
   const config = readConfig(process.env);
+  console.error(`[slingr-mcp] Config validated. Fetching OpenAPI from: ${config.openApiUrl}`);
 
   const originalOpenAPI = await fetchOpenAPI(config.openApiUrl);
+  console.error("[slingr-mcp] OpenAPI fetched successfully. Normalizing...");
+
   const normalized = normalizeOpenAPI(originalOpenAPI);
   const withActions = processActions(normalized.openapi, config.overrides);
 
-  log(config, {
-    openApiUrl: config.openApiUrl,
-    baseUrl: config.appUrl,
-    paths: Object.keys(withActions.openapi.paths ?? {}).length,
-    normalized: normalized.stats,
-    actions: withActions.stats,
+  console.error(
+    `[slingr-mcp] Spec ready (${Object.keys(withActions.openapi.paths ?? {}).length} paths). Starting MCP transport...`,
+  );
+
+  const server = await startMcpServer({
+    openApiSpec: withActions.openapi,
+    appUrl: config.appUrl,
+    apiToken: config.apiToken,
   });
 
-  // This is intentionally not starting an MCP transport yet. Returning the
-  // document keeps the first iteration focused on the Slingr adapter.
-  return withActions.openapi;
+  console.error("[slingr-mcp] MCP server is running and ready for requests.");
+
+  return server;
 }
 
 export function readConfig(env = process.env) {
@@ -53,7 +64,7 @@ export function readConfig(env = process.env) {
 function required(value, name) {
   const normalized = String(value ?? "").trim();
   if (!normalized) {
-    throw new Error(`${name} is required.`);
+    throw new Error(`Configuration error: ${name} environment variable is required.`);
   }
   return normalized;
 }
@@ -61,7 +72,7 @@ function required(value, name) {
 function requireHttps(value, name) {
   const normalized = required(value, name);
   if (!/^https:\/\//i.test(normalized)) {
-    throw new Error(`${name} must be an https:// URL. Received: ${normalized}`);
+    throw new Error(`Configuration error: ${name} must be an https:// URL. Received: "${normalized}"`);
   }
   return normalized.replace(/\/$/, "");
 }
@@ -72,22 +83,18 @@ function readJsonEnv(value, fallback) {
   try {
     return JSON.parse(value);
   } catch (error) {
-    throw new Error("SLINGR_MCP_OVERRIDES must contain valid JSON.", {
+    throw new Error("Configuration error: SLINGR_MCP_OVERRIDES must contain valid JSON.", {
       cause: error,
     });
   }
 }
 
-function log(config, payload) {
-  if (!config.debug) return;
-  process.stderr.write(`[slingr-mcp] ${JSON.stringify(payload, null, 2)}\n`);
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error) => {
-    process.stderr.write(`[slingr-mcp] ${error?.message ?? String(error)}\n`);
-    process.exitCode = 1;
-  });
-}
+// Unconditional execution on process start:
+// src/index.js is the executable entry point. Running unconditionally eliminates
+// fragile path/URL/symlink comparisons across Windows, macOS, and Linux.
+main().catch((error) => {
+  console.error("[slingr-mcp FATAL ERROR]", error?.stack ?? error?.message ?? String(error));
+  process.exit(1);
+});
 
 export { main };
