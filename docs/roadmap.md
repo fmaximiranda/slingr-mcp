@@ -31,6 +31,7 @@ Not verified yet: behavior in non-Claude clients (Cursor, VS Code Copilot, OpenA
 - [ ] README: the `OPENAPI_URL` example (`.../docs/mcp`) points to the Swagger HTML page; document the JSON URL or implement 2b.
 - [ ] Decide whether `dist/*.mcpb` stays tracked (it is in `.gitignore`) or moves to GitHub Releases.
 - [ ] Replace the smoke test with a `node --test` suite for `normalize`, `actions`, `overrides`, `readConfig`, plus the new filters (fixtures: small hand-written specs; never real App data).
+- [ ] Parity test with a hand-sanitized spec. A spec of another App was sanitized by hand (the process `normalize.js` automates): `definitions` → `components.schemas` with `$ref`s rewritten, `token` header removed, find-many params added as `$ref`s to `components.parameters` (same texts as `PARAM_DEFINITIONS`). Fixture: a small raw fragment (findMany, findOne, one ActionOne with a `#/definitions` request body) and its expected sanitized form; assert structural equality after `normalizeOpenAPI`.
 
 ## 1. Expose only what the token can use
 
@@ -43,6 +44,13 @@ Proposal (layers, each optional and combinable):
 2. **Platform endpoints off by default.** Remove `users`, `files`, `auth` tags (user management, login/logout) unless enabled (`includePlatform: true` in overrides).
 3. **Read-only mode.** `SLINGR_MCP_READ_ONLY=true` → `includeOperations: ["get"]` (actions excluded). The safe default for agents.
 4. **Explicit allowlists in overrides.** `includeEntities`, `excludeEntities`, `includeMethods`, `includeActions`: for write scopes the probe cannot discover.
+4b. **Curation profiles** (reproduces the hand-curated spec mentioned in 0, which cut ~600 operations to 134):
+   - `profile: "read"` (proposed default): per entity only `FindMany`, `FindOne`, `DownloadFile`; no add/update/delete/import/aggregate; platform endpoints off.
+   - `profile: "full"`: everything (today's behavior).
+   - Opt-ins on top of the profile: `includeActions` (by Action name, all variants One/Many/Query, e.g. `["createBom", "addNote"]`), `includeEntities`/`excludeEntities` (names or `prefix.*`), `includeWrites` (entities allowed to add/update), `includePlatform` (e.g. `["files"]` for upload/download/share), `includeAuditLogs`.
+   - Prune `components.schemas` not reachable from the kept operations (the hand-curated spec went from 374 to 222 schemas).
+   - Example override: `{"profile": "read", "includeActions": ["readyForDevelopment", "startWork", "readyForReview", "discard", "addNote"], "includePlatform": ["files"]}`.
+   - Note: curation does not fix B1–B3 (the hand-curated spec still yields 46 of 134 tools with `query parameters`); it only avoids B4 by dropping `aggregate`.
 5. **Builder doc sets per role** (Slingr-native, no code): create a doc set per audience in the App Builder and point `OPENAPI_URL` to it. Document it in the README as the first option.
 6. **Size:** expose `toolsMode` (`dynamic` gives a few meta-tools to list, describe and invoke endpoints; `explicit` + `includeTools`). Measure `tools/list` size before/after.
 
