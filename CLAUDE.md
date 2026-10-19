@@ -35,4 +35,4 @@ Generic MCP server that turns any Slingr App's generated OpenAPI into MCP tools.
 - Bundle for Claude Desktop: `npm run build` → `dist/slingr-mcp-<version>.mcpb` (note: `dist/` is in `.gitignore` but the 0.1.0 bundle is tracked).
 
 ## Roadmap
-See `docs/roadmap.md` (improvements 1–3 plus small fixes).
+See `docs/roadmap.md`: **B (blocking normalization bugs) first**, then small fixes and improvements 1–3. Today 323 of 606 tools of a real App have invalid schemas (`query parameters` name, `type: "file"`, property-level `required: true`) and `aggregate` is documented as GET but needs PUT.

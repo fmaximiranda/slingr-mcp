@@ -1,6 +1,29 @@
 # Roadmap
 
-Status: planned (2026-10-19). Order suggested: 0 → 1 → 2 → 3.
+Status: planned (2026-10-19). Order suggested: B → 0 → 1 → 2 → 3.
+
+## B. Blocking bugs: spec normalization (verified 2026-10-19)
+
+Found by connecting the server (repo `main` and the `0.1.0` `.mcpb` bundle, same code; `@ivotoby/openapi-mcp-server` 1.16.1) to a production Slingr App: 606 tools generated, **323 rejected by Claude Code** ("invalid input schema", it reports the Anthropic API would reject them). `normalizeOpenAPI` today only migrates `definitions`, fixes `$ref`s, adds find-many params and strips the `token` header; none of the issues below is handled.
+
+| # | Defect in Slingr's generated spec | Effect | Tools hit (sample App) | Scope |
+|---|---|---|---|---|
+| B1 | Every list/query/action operation declares `{"in": "query", "name": "query parameters", "schema": {"type": "object"}}` (a placeholder for "any filter") | (a) The property name has a space: Anthropic API tool schemas only accept `^[a-zA-Z0-9_.-]{1,64}$`, so Claude clients drop the tool. (b) Where a client keeps it, the library serializes it as `?query parameters[assignees]=...` and Slingr answers `400 Unrecognized parameter [query parameters[assignees]]`. | 309: all `*-find-many`, `*-del-over-qry`, every Action (`*-one`, `*-many`, `*-qry`) | (a) Claude clients; (b) **any client** |
+| B2 | File fields typed `{"type": "file"}` (Swagger 2 leftover; not a JSON Schema type) | Invalid JSON Schema (draft-07 and 2020-12 meta-schema) | 33 (14 not already hit by B1: `add`/`upd` of entities with file fields) | Any client that validates schemas (Claude rejects) |
+| B3 | Property-level `"required": true` inside `properties` (JSON Schema needs a `required` array on the parent) | Invalid JSON Schema | 8 (user create/update) | Same as B2 |
+| B4 | `/data/{entity}/aggregate` documented as **GET** with a body; the API only accepts **PUT** (GET answers `400 ID is not valid`, it reads `aggregate` as a record id; PUT with `[{"count":"total"}]` works) | Tool loads but always fails | every `*-aggregate` | **Any client** |
+
+Net effect today: listing, filtering, aggregating, executing Actions (e.g. workflow status changes) and creating/updating records with file fields are unavailable. Tools that load: find-one by id, audit logs, delete one, download file, import, and create/update of entities without file fields; only find-one was exercised (works).
+
+Fixes (in `normalize.js`, generic, with unit tests on small fixtures):
+- [ ] B1. Remove the `query parameters` param. Replace it with a valid, explicit filter input and serialize it exploded (`?field=value&field2=value2`), e.g. one `filters` object param handled by a request hook, or (better for agents) concrete optional params per entity field taken from the entity schema (`assignees`, `status`, `project`…), documenting Slingr's query language operators in the description. Check how the library serializes object query params (`style`/`explode`) before choosing; a custom serializer may be needed.
+- [ ] B2. Rewrite `type: "file"` to `type: "string"` (file id) and keep the original in the description.
+- [ ] B3. Convert property-level `required: true|false` into the parent's `required` array.
+- [ ] B4. Rewrite `get` on paths ending in `/aggregate` to `put` (keep body schema: array of operations).
+- [ ] Guard: after normalization, validate every tool input schema against the JSON Schema meta-schema and the property-name pattern; log offenders at startup (and drop them instead of exposing broken tools).
+- [ ] Regression check: start the server against a real App, `tools/list` → 0 invalid schemas; `find-many` with a filter returns filtered records; `aggregate` count works; an Action runs (on a test record).
+
+Not verified yet: behavior in non-Claude clients (Cursor, VS Code Copilot, OpenAI/Gemini-based agents) and how Claude Desktop surfaces the rejected tools (likely the same exclusion, since it uses the same API). B1(b) and B4 are server-side and fail in every client.
 
 ## 0. Small fixes
 - [ ] Declare `@modelcontextprotocol/sdk` as a direct dependency (it is imported in `src/mcp/server.js`).
